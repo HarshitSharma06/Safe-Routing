@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SafeRoute AI – AI-Powered Dynamic Evacuation Route Optimisation System for disaster management." />
+  <title>SafeRoute AI – Disaster Evacuation Route Optimisation</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-icon">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="18" stroke="#FF6B2B" stroke-width="2.5"/>
+          <path d="M20 8 L20 20 L28 14" stroke="#FF6B2B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 26 L20 20 L28 26" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="20" cy="20" r="3" fill="#FF6B2B"/>
+        </svg>
+      </div>
+      <div class="header-title">
+        <h1>SafeRoute AI</h1>
+        <p class="subtitle">AI-Powered Dynamic Evacuation Route Optimisation</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <span class="status-dot pulse"></span>
+        <span>System Active</span>
+      </div>
+      <div class="disaster-indicator" id="disasterBadge">
+        <span class="disaster-icon">🌊</span>
+        <span id="disasterLabel">Flood Active</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <main class="app-main">
+
+    <!-- ===== LEFT CONTROL PANEL ===== -->
+    <aside class="control-panel">
+
+      <section class="panel-section">
+        <h2 class="section-title"><span class="section-icon">🌪️</span>Disaster Configuration</h2>
+
+        <div class="form-group">
+          <label for="disasterType">Disaster Type</label>
+          <select id="disasterType">
+            <option value="flood">🌊 Flood</option>
+            <option value="fire">🔥 Fire</option>
+            <option value="earthquake">🏚️ Earthquake</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="dangerLevel">Danger Level: <span id="dangerValue" class="badge-danger">5</span></label>
+          <div class="slider-container">
+            <input type="range" id="dangerLevel" min="1" max="10" value="5" />
+            <div class="slider-labels"><span>Low (1)</span><span>High (10)</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="section-title"><span class="section-icon">🗺️</span>Route Planning</h2>
+
+        <div class="form-group">
+          <label for="startLocation">Starting Location</label>
+          <select id="startLocation"></select>
+        </div>
+
+        <div class="form-group">
+          <label for="destination">Target Shelter</label>
+          <select id="destination"></select>
+        </div>
+
+        <button class="btn btn-primary" id="findRoute">
+          <span class="btn-icon">🔍</span>Find Safest Route
+        </button>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="section-title"><span class="section-icon">⚡</span>Simulation Controls</h2>
+
+        <button class="btn btn-warning" id="blockRoad">
+          <span class="btn-icon">🚧</span>Simulate Road Blockage
+        </button>
+        <button class="btn btn-demo" id="runDemo">
+          <span class="btn-icon">▶️</span>Run Demo Scenario
+        </button>
+        <button class="btn btn-secondary" id="resetSim">
+          <span class="btn-icon">🔄</span>Reset Simulation
+        </button>
+        <p class="hint-text">💡 Click any road on the map to block/unblock it.</p>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="section-title"><span class="section-icon">🎨</span>Map Legend</h2>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>Safe Road</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Moderate Danger</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>Blocked / High Danger</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span>Recommended Route</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#FF6B2B;border-radius:50%"></span>Your Location</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#10b981;border-radius:50%"></span>Safe Shelter</div>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- ===== MAP AREA ===== -->
+    <div class="map-wrapper">
+      <!-- Real map: Leaflet + OpenStreetMap -->
+      <div id="cityMap"></div>
+
+      <!-- Floating notification -->
+      <div class="map-notification hidden" id="mapNotification">
+        <span id="mapNotifText"></span>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="map-stats-bar">
+        <div class="stat-pill">
+          <span class="stat-pill-label">Roads</span>
+          <span class="stat-pill-val" id="statTotalRoads">20</span>
+        </div>
+        <div class="stat-pill danger">
+          <span class="stat-pill-label">Blocked</span>
+          <span class="stat-pill-val" id="statBlockedRoads">0</span>
+        </div>
+        <div class="stat-pill safe">
+          <span class="stat-pill-label">Shelters</span>
+          <span class="stat-pill-val" id="statShelters">3</span>
+        </div>
+        <div class="stat-pill info">
+          <span class="stat-pill-label">Danger Lvl</span>
+          <span class="stat-pill-val" id="statDanger">5</span>
+        </div>
+      </div>
+
+      <!-- Demo progress panel -->
+      <div class="demo-panel hidden" id="demoPanel">
+        <div class="demo-panel-title">🎬 Demo Running</div>
+        <p id="demoStep">Initialising…</p>
+        <div class="demo-progress">
+          <div class="demo-progress-bar" id="demoProgressBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RIGHT INFO PANEL ===== -->
+    <aside class="info-panel">
+
+      <section class="panel-section result-section">
+        <h2 class="section-title"><span class="section-icon">📡</span>Route Analysis</h2>
+
+        <div class="no-route-msg" id="noRouteMsg">
+          <div class="no-route-icon">🗺️</div>
+          <p>Select a starting location and shelter, then click <strong>Find Safest Route</strong> to begin.</p>
+        </div>
+
+        <div class="route-details hidden" id="routeDetails">
+          <div class="route-status success" id="routeStatus">
+            <span class="route-status-icon">✅</span>
+            <span id="routeStatusText">Safe Route Found</span>
+          </div>
+          <div class="route-metric"><span class="metric-label">📍 From</span><span class="metric-val" id="resultFrom">—</span></div>
+          <div class="route-metric"><span class="metric-label">🏁 To</span><span class="metric-val" id="resultTo">—</span></div>
+          <div class="route-metric"><span class="metric-label">🛣️ Route Path</span><span class="metric-val mono" id="resultPath">—</span></div>
+          <div class="route-metric"><span class="metric-label">📏 Distance</span><span class="metric-val" id="resultDist">—</span></div>
+          <div class="route-metric"><span class="metric-label">⚠️ Danger Cost</span><span class="metric-val" id="resultCost">—</span></div>
+          <div class="route-metric"><span class="metric-label">🔗 Road Segments</span><span class="metric-val" id="resultSegments">—</span></div>
+          <div class="route-metric"><span class="metric-label">🔀 Alt Routes</span><span class="metric-val" id="resultAlt">—</span></div>
+          <div class="route-reason" id="routeReason">
+            <strong>🤖 AI Recommendation:</strong>
+            <p id="reasonText">—</p>
+          </div>
+        </div>
+
+        <div class="no-route-warning hidden" id="noRouteWarning">
+          <div class="warning-icon">🚨</div>
+          <h3>No Safe Route Available!</h3>
+          <p>All roads to the selected shelter are blocked. Please choose a different shelter or reset the simulation.</p>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="section-title"><span class="section-icon">🧠</span>A* Algorithm Explained</h2>
+        <div class="algo-explainer">
+          <p class="algo-intro"><strong>A* (A-Star)</strong> finds the optimal (shortest + safest) route from start to destination.</p>
+          <div class="algo-formula">
+            <strong>Route Cost Formula:</strong>
+            <code>f(n) = g(n) + h(n)</code>
+            <ul>
+              <li><code>g(n)</code> = actual cost from start to n<br><em>(distance + danger penalties)</em></li>
+              <li><code>h(n)</code> = estimated cost from n to goal<br><em>(heuristic – straight-line distance)</em></li>
+              <li><code>Danger Penalty</code> = danger_score × disaster_multiplier</li>
+            </ul>
+          </div>
+          <p class="algo-note">Blocked roads get infinite cost and are completely excluded. The algorithm always prefers lower total cost routes.</p>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2 class="section-title"><span class="section-icon">🌡️</span>Disaster Effects on Roads</h2>
+        <div class="disaster-effects">
+          <div class="effect-item flood active" id="effectFlood">
+            <span class="effect-icon">🌊</span>
+            <div><strong>Flood</strong><p>Low-lying roads near rivers become impassable. Bridges may be flooded.</p></div>
+          </div>
+          <div class="effect-item fire" id="effectFire">
+            <span class="effect-icon">🔥</span>
+            <div><strong>Fire</strong><p>Roads near fire zones blocked. Wind direction affects spread.</p></div>
+          </div>
+          <div class="effect-item earthquake" id="effectEarthquake">
+            <span class="effect-icon">🏚️</span>
+            <div><strong>Earthquake</strong><p>Structural collapses may block roads. Overhead bridges are dangerous.</p></div>
+          </div>
+        </div>
+      </section>
+
+    </aside>
+  </main>
+
+  <footer class="app-footer">
+    <p><strong>SafeRoute AI</strong> — B.Tech Disaster Management Project &nbsp;|&nbsp; Prototype using simulated data. Not for real emergency use. &nbsp;|&nbsp; Algorithm: A* Search &nbsp;|&nbsp; Map: OpenStreetMap (Leaflet) · Data: Delhi</p>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
